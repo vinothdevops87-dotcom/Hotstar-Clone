@@ -84,9 +84,7 @@ Ensure your project is associated with that gate
 ⚙️ GitHub Actions (with Quality Gate)
 Create: .github/workflows/devsecops-pipeline.yml
 
-yaml
-Copy code
-name: CI/CD Pipeline for Hotstar Clone (with Quality Gate)
+name: deploy-hotstar-clone
 
 on:
   push:
@@ -94,57 +92,55 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # Run SonarQube scan
       - name: SonarQube Scan
-        id: sonar
         uses: sonarsource/sonarqube-scan-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           projectBaseDir: .
-          args: >
-            -Dsonar.projectKey=hotstar_clone
-
-      - name: SonarQube Quality Gate Check
-        uses: sonarsource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: Build Docker Image
-        if: success() # Only runs if Quality Gate passes
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/hotstar-clone:${{ github.run_number }} .
+      # Enforce Quality Gate (fail pipeline if not passed)
+      - name: Wait for SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 10
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: Login to Docker Hub
-        if: success()
-        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Push Docker Image
-        if: success()
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/hotstar-clone:${{ github.run_number }}
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hotstar-clone:latest
 
-      - name: Deploy to EC2 via SSH
-        if: success()
+      - name: Deploy to Remote Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ secrets.SSH_REMOTE_HOST }}
+          username: ${{ secrets.SSH_REMOTE_USER }}
+          key: ${{ secrets.REMOTE_SSH_KEY }}
+          port: ${{ secrets.SSH_REMOTE_PORT }}
           script: |
-            docker pull ${{ secrets.DOCKER_USERNAME }}/hotstar-clone:${{ github.run_number }}
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/hotstar-clone:latest
             docker stop hotstar-clone || true
             docker rm hotstar-clone || true
-            docker run -d -p 3000:3000 --name hotstar-clone ${{ secrets.DOCKER_USERNAME }}/hotstar-clone:${{ github.run_number }}
-✅ The pipeline stops immediately if the Quality Gate fails — preventing bad code from being deployed.
-
+            docker run -d -p 3000:80 --name hotstar-clone ${{ secrets.DOCKER_HUB_USERNAME }}/hotstar-clone:latest
 🚀 Deployment Steps
 1️⃣ Push your code to main
 2️⃣ Pipeline automatically runs:

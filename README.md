@@ -39,7 +39,7 @@ It includes **SonarQube Quality Gate checks**, **Docker-based deployment**, and 
 
 **main.tf**
 ```hcl
-provider "aws" {
+**provider "aws" {
   region = "ap-south-1"
 }
 
@@ -54,34 +54,35 @@ resource "aws_instance" "devsecops_ec2" {
 } 
 2️⃣ Commands
 bash
-Copy code
 terraform init
 terraform plan
 terraform apply -auto-approve
 Get the EC2 public IP after Terraform completes.
+**
 
-🔐 SonarQube Setup
+**🔐 SonarQube Setup
 1️⃣ Run SonarQube (Local or Remote)
 bash
-Copy code
 docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
-Access → http://localhost:9000
+Access → http://localhost:9000**
 
 2️⃣ Create Project & Token
 Create project named hotstar_clone
 
 Generate a SONAR_TOKEN
 
-Note your SONAR_HOST_URL (e.g., http://<ec2-ip>:9000)
+Note your SONAR_HOST_URL (e.g., http://<ec2-ip>:9000)****
 
-3️⃣ Set Up Quality Gate
+
+**3️⃣ Set Up Quality Gate
 Go to SonarQube → Quality Gates
 
 Use the default or create a custom Quality Gate (e.g., “No Critical Issues”)
 
-Ensure your project is associated with that gate
+Ensure your project is associated with that gate**
 
-⚙️ GitHub Actions (with Quality Gate)
+
+**⚙️ GitHub Actions (with Quality Gate)
 Create: .github/workflows/devsecops-pipeline.yml
 
 name: deploy-hotstar-clone
@@ -143,7 +144,7 @@ jobs:
             docker run -d -p 3000:80 --name hotstar-clone ${{ secrets.DOCKER_HUB_USERNAME }}/hotstar-clone:latest
 🚀 Deployment Steps
 1️⃣ Push your code to main
-2️⃣ Pipeline automatically runs:
+2️⃣ Pipeline automatically runs:**
 
 SonarQube analysis
 
